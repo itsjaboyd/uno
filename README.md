@@ -13,3 +13,5 @@ In seperate terminal
 This will start the back end server, and the front end will hot-reload when editing the frontend
 
 I am adding another line to the read me to test out the lines of code badge workflow.
+
+![](https://raw.githubusercontent.com/Kherrisan/cloc-badge-action/master/cloc.svg)
