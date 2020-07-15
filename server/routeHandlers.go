@@ -2,68 +2,65 @@ package main
 
 import (
 	"net/http"
-	"github.com/labstack/echo"
-	)
+	"strconv"
 
-var game_id string = "12234"
+	"github.com/labstack/echo/v4"
+)
 
-type Card struct {
-	Number int `json:"number"`
-	Color string `json:"color"`
-}
+var sim bool = true
 
 type Response struct {
-	Valid bool `json:"valid"`  // Valid game id
-	Payload map[string]interface{} `json:"payload"`
+	ValidGame bool                   `json:"valid"` // Valid game id
+	Payload   map[string]interface{} `json:"payload"`
 }
-
-func checkId(c echo.Context) *Response {
-	r := &Response{c.Param("id") == "12234", nil}
-	return r
-}
-
-func newMap() map[string]interface{} {
-	tmp := make(map[string]interface{})
-	tmp["current_card"] = []*Card{&Card{4, "red"}}
-	return tmp
-}
-
 
 func setupRoutes(e *echo.Echo) {
-	//e.GET("/", hello)
 	e.GET("/newgame", newGame)
-	e.POST("/startgame/:id", startGame)
-	e.POST("/login/:id", login)
-	e.POST("/newgame", newGame)
+	e.GET("/update/:game/:username", update)
+	e.POST("/startgame/:game/:username", startGame)
+	e.POST("/login/:game/:username", login)
+	e.POST("/play/:game/:username/:number/:color", play)
+	e.POST("/draw/:game/:username", draw)
 }
 
+func newGame(c echo.Context) error {
+	createNewGame()
+	return c.JSONPretty(http.StatusOK, &Response{true, newPayload("")}, "  ")
+}
 
 func login(c echo.Context) error {
-	response := checkId(c)
-	return c.JSON(http.StatusOK, response)
+	validGame := joinGame(c.Param("game"), c.Param("username"))
+	return respondIfValid(c, validGame)
 }
 
 func startGame(c echo.Context) error {
-	response := checkId(c)
-	pay := newMap()
-
-	pay["cards"] = []*Card {
-			&Card{5,"blue"},
-			&Card{3,"red"},
-			&Card{6,"green"},
-			&Card{8,"yellow"},
-			&Card{9,"red"},
-	}
-	pay["current_player"] = "Ryan"
-	pay["players"] = []string{"Bill", "Bob", "Jill", "Ryan"}
-	
-	response.Payload = pay
-	return c.JSON(http.StatusOK, response)
+	dealCards()
+	return update(c)
 }
 
+func update(c echo.Context) error {
+	valid := updateGame(c.Param("game"), c.Param("username"))
+	return respondIfValid(c, valid)
+}
 
-func newGame(c echo.Context) error {
-	pay := newMap()
-	pay["game_id"] = 12234
-	return c.JSON(http.StatusOK, &Response{true, pay})
+func play(c echo.Context) error {
+	num, _ := strconv.Atoi(c.Param("number"))
+	card := Card{num, c.Param("color")}
+	valid := playCard(c.Param("game"), c.Param("username"), card)
+	return respondIfValid(c, valid)
+}
+
+func draw(c echo.Context) error {
+	valid := drawCard(c.Param("game"), c.Param("username"))
+	return respondIfValid(c, valid)
+}
+
+func respondIfValid(c echo.Context, valid bool) error {
+	var payload *Response
+	if valid {
+		payload = &Response{true, newPayload(c.Param("username"))}
+	} else {
+		payload = &Response{false, nil}
+	}
+	return c.JSONPretty(http.StatusOK, payload, "  ")
 }
